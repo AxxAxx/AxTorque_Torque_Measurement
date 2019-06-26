@@ -39,6 +39,9 @@ cur_date_time = QDateTime.currentDateTime()
 str_cur_date  = cur_date_time.toString("dd-MM-yyyy")
 str_cur_time  = cur_date_time.toString("HH:mm:ss")
 
+
+
+
 # Show debug info in terminal? Warning: Slow! Do not leave on unintentionally.
 DEBUG = False
 
@@ -56,7 +59,7 @@ class State(object):
         self.yaw = np.nan
         self.pitch = np.nan
         self.roll = np.nan
-
+        self.tare_value = 0
         # Mutex for proper multithreading. If the state variables are not
         # atomic or thread-safe, you should lock and unlock this mutex for each
         # read and write operation. In this demo we don't need it, but I keep it
@@ -73,8 +76,10 @@ class MainWindow(QtWid.QWidget):
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
 
-        self.setGeometry(50, 50, 800, 660)
+        self.setGeometry(50, 50, 1000, 660)
         self.setWindowTitle("AxTorque - Torque Measurement")
+
+        
 
         # -------------------------
         #   Top frame
@@ -130,16 +135,32 @@ class MainWindow(QtWid.QWidget):
         self.gw_chart = pg.GraphicsWindow()
         self.gw_chart.setBackground([20, 20, 20])
         self.pi_chart = self.gw_chart.addPlot()
+        self.gw_chart2 = pg.GraphicsWindow()
+        self.gw_chart2.setMaximumWidth(300)
+        self.gw_chart2.setBackground([10, 10, 10])
+        self.pi_chart2 = self.gw_chart2.addPlot()
+
 
         p = {'color': '#BBB', 'font-size': '10pt'}
         self.pi_chart.showGrid(x=1, y=1)
-        self.pi_chart.setTitle('Arduino timeseries', **p)
-        self.pi_chart.setLabel('bottom', text='history (sec)', **p)
-        self.pi_chart.setLabel('left', text='readings', **p)
+        self.pi_chart.setTitle('Torque Measurements', **p)
+        self.pi_chart.setLabel('bottom', text='Time [s]', **p)
+        self.pi_chart.setLabel('left', text='Torque [Nm]', **p)
         self.pi_chart.setRange(
             xRange=[-1.04 * CHART_HISTORY_TIME, CHART_HISTORY_TIME * 0.04])#,
             #yRange=[-1.1, 1.1])#,
             #disableAutoRange=True)
+
+
+        p = {'color': '#BBB', 'font-size': '10pt'}
+        self.pi_chart2.showGrid(x=1, y=1)
+        self.pi_chart2.setTitle('Yaw, Pitch, Roll', **p)
+        self.pi_chart2.setLabel('bottom', text='Time [s]', **p)
+        self.pi_chart2.setLabel('left', text='Orientation', **p)
+        self.pi_chart2.setRange(
+            xRange=[-1.04 * CHART_HISTORY_TIME, CHART_HISTORY_TIME * 0.04])
+
+
 
         # Create ChartHistory and PlotDataItem and link them together
         PEN_01 = pg.mkPen(color=[200, 200, 200], width=3)
@@ -149,9 +170,9 @@ class MainWindow(QtWid.QWidget):
 
         num_samples = round(CHART_HISTORY_TIME*1e3/UPDATE_INTERVAL_ARDUINO)
         self.CH_1 = ChartHistory(num_samples, self.pi_chart.plot(pen=PEN_01))
-        self.CH_yaw = ChartHistory(num_samples, self.pi_chart.plot(pen=PEN_yaw))
-        self.CH_pitch = ChartHistory(num_samples, self.pi_chart.plot(pen=PEN_pitch))
-        self.CH_roll = ChartHistory(num_samples, self.pi_chart.plot(pen=PEN_roll))
+        self.CH_yaw = ChartHistory(num_samples, self.pi_chart2.plot(pen=PEN_yaw))
+        self.CH_pitch = ChartHistory(num_samples, self.pi_chart2.plot(pen=PEN_pitch))
+        self.CH_roll = ChartHistory(num_samples, self.pi_chart2.plot(pen=PEN_roll))
 
         self.CH_1.x_axis_divisor = 1000     # From [ms] to [s]
         self.CH_yaw.x_axis_divisor = 1000     # From [ms] to [s]
@@ -166,7 +187,7 @@ class MainWindow(QtWid.QWidget):
         grid = QtWid.QGridLayout()
         grid.addWidget(QtWid.QLabel("time"), 0, 0)
         grid.addWidget(self.qlin_reading_t , 0, 1)
-        grid.addWidget(QtWid.QLabel("#01") , 1, 0)
+        grid.addWidget(QtWid.QLabel("Torque [Nm]") , 1, 0)
         grid.addWidget(self.qlin_reading_1 , 1, 1)
         grid.setAlignment(QtCore.Qt.AlignTop)
 
@@ -204,10 +225,14 @@ class MainWindow(QtWid.QWidget):
         qgrp_chart.setStyleSheet(SS_GROUP)
         qgrp_chart.setLayout(grid)
 
+
         vbox = QtWid.QVBoxLayout()
+        
+
         vbox.addWidget(qgrp_readings)
         vbox.addWidget(qgrp_wave_type)
         vbox.addWidget(qgrp_chart)
+        vbox.addWidget(self.gw_chart2, 1)
         vbox.addStretch()
 
         # Round up bottom frame
@@ -251,7 +276,7 @@ class MainWindow(QtWid.QWidget):
 
     @QtCore.pyqtSlot()
     def process_qpbt_wave_sine(self):
-        temp_Axel = 0
+        state.tare_value = state.reading_1
         #ard_pyqt.queued_write("sine")
 
     @QtCore.pyqtSlot()
@@ -367,10 +392,10 @@ def my_Arduino_DAQ_update():
     if use_PC_time: state.time = cur_date_time.toMSecsSinceEpoch()
 
     # Add readings to chart histories
-    window.CH_1.add_new_reading(state.time, state.reading_1)
-    window.CH_yaw.add_new_reading(state.time, state.yaw/1000)
-    window.CH_pitch.add_new_reading(state.time, state.pitch/1000)
-    window.CH_roll.add_new_reading(state.time, state.roll/1000)
+    window.CH_1.add_new_reading(state.time, state.reading_1-state.tare_value)
+    window.CH_yaw.add_new_reading(state.time, state.yaw)
+    window.CH_pitch.add_new_reading(state.time, state.pitch)
+    window.CH_roll.add_new_reading(state.time, state.roll)
 
 
     # Logging to file
