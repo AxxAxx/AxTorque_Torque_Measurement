@@ -59,7 +59,7 @@ from pathlib import Path
 from DvG_debug_functions import print_fancy_traceback as pft
 
 class Arduino():
-    def __init__(self, name="Ard", baudrate=9600,
+    def __init__(self, name="ESP32", baudrate=9600,
                  read_timeout=1, write_timeout=1,
                  read_term_char='\n', write_term_char='\n'):
         # Reference to the serial.Serial device instance when a connection has
@@ -170,7 +170,7 @@ class Arduino():
         try:
             # Query the identity string.
             self.is_alive = True
-            [success, identity_str] = [True, "hej"]#self.query("id?", timeout_warning_style=2)
+            [success, identity_str] = [True, "ESP32"]#self.query("id?", timeout_warning_style=2)
         except:
             print("Identity query 'id?' failed")
             if self.ser is not None: self.ser.close()
