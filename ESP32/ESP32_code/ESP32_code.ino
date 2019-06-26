@@ -37,18 +37,12 @@ void setup() {
   scale.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
 
   scale.set_scale(123333.f);                      // this value is obtained by calibrating the scale with known weights; see the README for details
-  scale.tare();				        // reset the scale to 0
+  scale.tare();                // reset the scale to 0
 }
 
 
+double wave = 0.0;
 
-#define WAVE_SINE     1
-#define WAVE_SQUARE   2
-#define WAVE_SAWTOOTH 3
-
-uint8_t wave_type = WAVE_SINE;
-double  wave_freq = 0.3;   // [Hz]
-double  wave = 0.0;
 
 uint32_t curMillis  = millis();
 uint32_t prevMillis = 0;
@@ -62,14 +56,6 @@ void loop() {
   curMillis = millis();
   if (curMillis - prevMillis >= 1) {
     
-    if (wave_type == WAVE_SINE) {
-      wave = sin(2*PI*wave_freq*curMillis/1e3);
-    } else if (wave_type == WAVE_SQUARE) {
-      wave = (fmod(wave_freq*curMillis/1e3, (double)(1.0)) > 0.5) ? 1 : -1;
-    } else if (wave_type == WAVE_SAWTOOTH) {
-      wave = 2*fmod(wave_freq*curMillis/1e3, (double)(1.0)) - 1;
-    }
-
     prevMillis = curMillis;
   }
 
@@ -80,13 +66,18 @@ void loop() {
     if (strcmp(strCmd, "id?") == 0) {
       Ser.println("Wave generator");
     
-    } else if(strcmp(strCmd, "sine") == 0) {
-      scale.tare();                // reset the scale to 0
-    } else if(strcmp(strCmd, "square") == 0) {
-      wave_type = WAVE_SQUARE;
-    } else if(strcmp(strCmd, "sawtooth") == 0) {
-      wave_type = WAVE_SAWTOOTH;
-
+    } else if(strcmp(strCmd, "-") == 0) {
+      wave = scale.get_value()/123333;
+      Ser.print(curMillis);
+      Ser.print('\t');
+      Ser.print(wave, 4);
+      Ser.print('\t');
+      Ser.print(0.0);
+      Ser.print('\t');
+      Ser.print(0.0);
+      Ser.print('\t');
+      Ser.println(0.0);
+      
     } else if(strcmp(strCmd, "?") == 0) {
       sensor.computeAngles();
       wave = scale.get_value()/123333;
