@@ -54,10 +54,12 @@ void loop() {
 
   // Generate wave sample every millisecond
   curMillis = millis();
-  if (curMillis - prevMillis >= 1) {
+/*  if (curMillis - prevMillis >= 1) {
     
     prevMillis = curMillis;
   }
+*/
+sensor.computeAngles();
 
   // Process serial commands
   if (sc.available()) {
@@ -79,7 +81,7 @@ void loop() {
       Ser.println(0.0);
       
     } else if(strcmp(strCmd, "?") == 0) {
-      sensor.computeAngles();
+      //sensor.computeAngles();
       wave = scale.get_value()/123333;
       Ser.print(curMillis);
       Ser.print('\t');

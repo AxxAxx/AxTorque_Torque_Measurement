@@ -11,6 +11,8 @@ __version__     = "1.0.0"
 import os
 import sys
 from pathlib import Path
+import glob
+import serial
 
 import numpy as np
 import psutil
@@ -33,14 +35,10 @@ UPDATE_INTERVAL_ARDUINO = 10  # 10 [ms]
 UPDATE_INTERVAL_CHART   = 10  # 10 [ms]
 CHART_HISTORY_TIME      = 30  # 10 [s]
 
-
 # Global variables for date-time keeping
 cur_date_time = QDateTime.currentDateTime()
 str_cur_date  = cur_date_time.toString("dd-MM-yyyy")
 str_cur_time  = cur_date_time.toString("HH:mm:ss")
-
-
-
 
 # Show debug info in terminal? Warning: Slow! Do not leave on unintentionally.
 DEBUG = False
@@ -79,20 +77,20 @@ class MainWindow(QtWid.QWidget):
         self.setGeometry(50, 50, 1000, 660)
         self.setWindowTitle("AxTorque - Torque Measurement")
 
-        
-
         # -------------------------
         #   Top frame
         # -------------------------
 
         # Left box
-        self.qlbl_update_counter = QtWid.QLabel("0")
+        self.qlbl_update_counter = QtWid.QLabel("Samples: 0")
+        self.qlbl_Axeltext = QtWid.QLabel("Axel Johansson 2019")
         self.qlbl_DAQ_rate = QtWid.QLabel("DAQ: 0 Hz")
         self.qlbl_DAQ_rate.setMinimumWidth(100)
 
         vbox_left = QtWid.QVBoxLayout()
-        vbox_left.addWidget(self.qlbl_update_counter, stretch=0)
+        vbox_left.addWidget(self.qlbl_Axeltext, stretch=0)
         vbox_left.addStretch(1)
+        vbox_left.addWidget(self.qlbl_update_counter, stretch=0)
         vbox_left.addWidget(self.qlbl_DAQ_rate, stretch=0)
 
          # Middle box
@@ -140,7 +138,6 @@ class MainWindow(QtWid.QWidget):
         self.gw_chart2.setBackground([10, 10, 10])
         self.pi_chart2 = self.gw_chart2.addPlot()
 
-
         p = {'color': '#BBB', 'font-size': '10pt'}
         self.pi_chart.showGrid(x=1, y=1)
         self.pi_chart.setTitle('Torque Measurements', **p)
@@ -151,7 +148,6 @@ class MainWindow(QtWid.QWidget):
             #yRange=[-1.1, 1.1])#,
             #disableAutoRange=True)
 
-
         p = {'color': '#BBB', 'font-size': '10pt'}
         self.pi_chart2.showGrid(x=1, y=1)
         self.pi_chart2.setTitle('Yaw, Pitch, Roll', **p)
@@ -159,8 +155,6 @@ class MainWindow(QtWid.QWidget):
         self.pi_chart2.setLabel('left', text='Orientation', **p)
         self.pi_chart2.setRange(
             xRange=[-1.04 * CHART_HISTORY_TIME, CHART_HISTORY_TIME * 0.04])
-
-
 
         # Create ChartHistory and PlotDataItem and link them together
         PEN_01 = pg.mkPen(color=[200, 200, 200], width=3)
@@ -200,13 +194,15 @@ class MainWindow(QtWid.QWidget):
         self.qpbt_wave_sine.clicked.connect(self.process_qpbt_wave_sine)
         self.qpbt_wave_square = QtWid.QPushButton("Reset orientation")
         self.qpbt_wave_square.clicked.connect(self.process_qpbt_wave_square)
-        self.qpbt_wave_sawtooth = QtWid.QPushButton("Sawtooth")
-        self.qpbt_wave_sawtooth.clicked.connect(self.process_qpbt_wave_sawtooth)
+        self.qpbt_wave_sawtooth = QtWid.QComboBox()
+        self.qpbt_wave_sawtooth.addItem("port")
+        #self.qpbt_wave_sawtooth.stateChanged.connect(lambda:self.btnstate(self.qpbt_wave_sawtooth))
+        #self.qpbt_wave_sawtooth.clicked.connect(self.process_qpbt_wave_sawtooth)
 
         grid = QtWid.QGridLayout()
         grid.addWidget(self.qpbt_wave_sine    , 0, 0)
         grid.addWidget(self.qpbt_wave_square  , 1, 0)
-        #grid.addWidget(self.qpbt_wave_sawtooth, 2, 0)
+        grid.addWidget(self.qpbt_wave_sawtooth, 2, 0)
         grid.setAlignment(QtCore.Qt.AlignTop)
 
         qgrp_wave_type = QtWid.QGroupBox("Tools")
@@ -249,6 +245,9 @@ class MainWindow(QtWid.QWidget):
         vbox.addSpacerItem(QtWid.QSpacerItem(0, 20))
         vbox.addLayout(hbox_bot, stretch=1)
 
+
+
+
     # --------------------------------------------------------------------------
     #   Handle controls
     # --------------------------------------------------------------------------
@@ -283,9 +282,9 @@ class MainWindow(QtWid.QWidget):
     def process_qpbt_wave_square(self):
         ard_pyqt.queued_write("square")
 
-    @QtCore.pyqtSlot()
-    def process_qpbt_wave_sawtooth(self):
-        ard_pyqt.queued_write("sawtooth")
+    #@QtCore.pyqtSlot()
+    #def process_qpbt_wave_sawtooth(self):
+    #    ard_pyqt.queued_write("sawtooth")
 
     @QtCore.pyqtSlot(str)
     def set_text_qpbt_record(self, text_str):
@@ -298,7 +297,7 @@ class MainWindow(QtWid.QWidget):
 @QtCore.pyqtSlot()
 def update_GUI():
     window.qlbl_cur_date_time.setText("%s    %s" % (str_cur_date, str_cur_time))
-    window.qlbl_update_counter.setText("%i" % ard_pyqt.DAQ_update_counter)
+    window.qlbl_update_counter.setText("Samples: %i" % ard_pyqt.DAQ_update_counter)
     window.qlbl_DAQ_rate.setText("DAQ: %.1f Hz" % ard_pyqt.obtained_DAQ_rate_Hz)
     window.qlin_reading_t.setText("%i" % state.time)
     window.qlin_reading_1.setText("%.4f" % state.reading_1)
@@ -313,6 +312,8 @@ def update_chart():
         tick = QDateTime.currentDateTime()
 
     window.CH_1.update_curve()
+    #if self.qpbt_wave_sawtooth.isChecked() == True:
+    #    print("hej")
     window.CH_yaw.update_curve()
     window.CH_pitch.update_curve()
     window.CH_roll.update_curve()
@@ -333,6 +334,10 @@ def stop_running():
     print("Stopping timers: ", end='')
     timer_chart.stop()
     print("done.")
+
+
+
+
 
 @QtCore.pyqtSlot()
 def notify_connection_lost():
@@ -422,6 +427,7 @@ def my_Arduino_DAQ_update():
 # ------------------------------------------------------------------------------
 
 if __name__ == '__main__':
+    
     # Set priority of this process to maximum in the operating system
     print("PID: %s\n" % os.getpid())
     try:
