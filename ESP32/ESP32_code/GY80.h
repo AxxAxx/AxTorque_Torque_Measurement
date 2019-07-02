@@ -83,12 +83,12 @@ public:
         }
         if (!(c == 0xE5 && d == 0xD3 && e == 0x48 && f == 0x34 && g == 0x33)) {
             while (1) {
-                Serial.println("ERROR");
-                Serial.println(c);
-                Serial.println(d);
-                Serial.println(e);
-                Serial.println(f);
-                Serial.println(g);
+                //Serial.println("ERROR");
+                //Serial.println(c);
+                //Serial.println(d);
+                //Serial.println(e);
+                //Serial.println(f);
+                //Serial.println(g);
             }
         }
     }

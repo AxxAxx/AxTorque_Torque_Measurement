@@ -54,11 +54,10 @@ void loop() {
 
   // Generate wave sample every millisecond
   curMillis = millis();
-/*  if (curMillis - prevMillis >= 1) {
-    
-    prevMillis = curMillis;
-  }
-*/
+
+
+
+
 sensor.computeAngles();
 
   // Process serial commands
@@ -66,7 +65,7 @@ sensor.computeAngles();
     strCmd = sc.getCmd();
 
     if (strcmp(strCmd, "id?") == 0) {
-      Ser.println("Wave generator");
+      Ser.println("TorqueSensor");
     
     } else if(strcmp(strCmd, "-") == 0) {
       wave = scale.get_value()/123333;

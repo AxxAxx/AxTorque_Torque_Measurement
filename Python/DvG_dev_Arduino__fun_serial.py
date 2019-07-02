@@ -170,7 +170,8 @@ class Arduino():
         try:
             # Query the identity string.
             self.is_alive = True
-            [success, identity_str] = [True, "ESP32"]#self.query("id?", timeout_warning_style=2)
+            [success, identity_str] = self.query("id?", timeout_warning_style=2)
+            #[success, identity_str] = [True, "ESP32"]#self.query("id?", timeout_warning_style=2)
         except:
             print("Identity query 'id?' failed")
             if self.ser is not None: self.ser.close()
